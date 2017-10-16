@@ -1,6 +1,7 @@
 package presto
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -222,9 +223,21 @@ func (q *Query) fetchResult(req *http.Request) (*queryResult, error) {
 	return result, nil
 }
 
+func (q *Query) setBasicAuth(req *http.Request) string {
+	// If the pattern is the username:password pattern; assume it is Authenticated and needs to be protected..
+	if strings.Contains(q.user, ":") {
+		encoded_credentials := fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(q.user)))
+		req.Header.Set("Authorization", encoded_credentials)
+		// When has the pasword embeded within the username string; strip out password so only username is returned
+		return strings.Split(q.user, ":")[0]
+	}
+	return q.user
+}
+
 func (q *Query) makeRequest(req *http.Request) (*http.Response, error) {
+	presto_user := q.setBasicAuth(req)
 	req.Header.Add("User-Agent", userAgent)
-	req.Header.Add("X-Presto-User", q.user)
+	req.Header.Add("X-Presto-User", presto_user)
 	req.Header.Add("X-Presto-Catalog", q.catalog)
 	req.Header.Add("X-Presto-Schema", q.schema)
 	req.Header.Add("X-Presto-Source", q.source)
