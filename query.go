@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -245,10 +246,14 @@ func (q *Query) makeRequest(req *http.Request) (*http.Response, error) {
 
 	tr := &http.Transport{ //Fixes cert x509 signed by unknown authority
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		Dial: (&net.Dialer{
+			Timeout: 5 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 5 * time.Second,
 	}
 
 	client := &http.Client{
-		Timeout:   15 * time.Second,
+		Timeout:   time.Second * 10,
 		Transport: tr, //Fixes cert x509 signed by unknown authority
 	}
 	// Sometimes presto returns a 503 to indicate that results aren't yet
