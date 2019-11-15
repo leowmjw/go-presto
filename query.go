@@ -1,10 +1,12 @@
 package presto
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -235,18 +237,30 @@ func (q *Query) setBasicAuth(req *http.Request) string {
 }
 
 func (q *Query) makeRequest(req *http.Request) (*http.Response, error) {
-	presto_user := q.setBasicAuth(req)
+	prestoUser := q.setBasicAuth(req)
 	req.Header.Add("User-Agent", userAgent)
-	req.Header.Add("X-Presto-User", presto_user)
+	req.Header.Add("X-Presto-User", prestoUser)
 	req.Header.Add("X-Presto-Catalog", q.catalog)
 	req.Header.Add("X-Presto-Schema", q.schema)
 	req.Header.Add("X-Presto-Source", q.source)
 
+	tr := &http.Transport{ //Fixes cert x509 signed by unknown authority
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		Dial: (&net.Dialer{
+			Timeout: 5 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 5 * time.Second,
+	}
+
+	client := &http.Client{
+		Transport: tr, //Fixes cert x509 signed by unknown authority
+	}
 	// Sometimes presto returns a 503 to indicate that results aren't yet
 	// available, and we should retry after waiting a bit.
 	retry := initialRetry
 	for {
-		resp, err := http.DefaultClient.Do(req)
+		//resp, err := http.DefaultClient.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
 			return nil, err
 		}
