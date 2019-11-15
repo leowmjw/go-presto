@@ -253,7 +253,6 @@ func (q *Query) makeRequest(req *http.Request) (*http.Response, error) {
 	}
 
 	client := &http.Client{
-		Timeout:   time.Second * 10,
 		Transport: tr, //Fixes cert x509 signed by unknown authority
 	}
 	// Sometimes presto returns a 503 to indicate that results aren't yet
